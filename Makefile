@@ -2,8 +2,8 @@ PROGRAM=sniffer
 
 all: $(PROGRAM)
 
-SOURCES = abstract_sniffer.cpp print_sniffer.cpp main.cpp
-HEADERS = abstract_sniffer.h print_sniffer.h
+SOURCES = abstract_sniffer.cpp print_sniffer.cpp ip_port_connection.cpp tcp_sniffer.cpp main.cpp
+HEADERS = abstract_sniffer.h print_sniffer.h ip_port_connection.h tcp_sniffer.h
 
 OBJS = $(SOURCES:.cpp=.o)
 

@@ -1,4 +1,4 @@
-#include "tcp_sniffer.h"
+#include "print_sniffer.h"
 
 #include<pcap.h>
 #include<stdio.h>
@@ -41,7 +41,7 @@ int main()
 	scanf("%d", &n);
 	devname = devs[n];
 
-	TcpSniffer sniffer;
+	PrintSniffer sniffer(stdout);
 	sniffer.loop(devname);
 
 	return 0;
