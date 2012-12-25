@@ -95,6 +95,9 @@ public:
 	virtual const char * getHeaderName() const { return "Ethernet"; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+		return new EthernetHeader(buffer, len, prev_header);
+	}
 };
 
 class IpHeader : public AbstractHeader {
@@ -104,6 +107,9 @@ public:
 	virtual const char * getHeaderName() const { return "IP"; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+		return new IpHeader(buffer, len, prev_header);
+	}
 };
 
 class TcpHeader : public AbstractHeader {
@@ -113,6 +119,9 @@ public:
 	virtual const char * getHeaderName() const { return "TCP"; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+		return new TcpHeader(buffer, len, prev_header);
+	}
 };
 
 class UdpHeader : public AbstractHeader {
@@ -122,6 +131,9 @@ public:
 	virtual const char * getHeaderName() const { return "UDP"; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+		return new UdpHeader(buffer, len, prev_header);
+	}
 };
 
 class IcmpHeader : public AbstractHeader {
@@ -131,6 +143,9 @@ public:
 	virtual const char * getHeaderName() const { return "ICMP"; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+		return new IcmpHeader(buffer, len, prev_header);
+	}
 };
 
 class IgmpHeader : public AbstractHeader {
@@ -138,6 +153,9 @@ public:
 	IgmpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
 		: AbstractHeader(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "IGMP"; }
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+		return new IgmpHeader(buffer, len, prev_header);
+	}
 };
 
 class ArpHeader : public AbstractHeader {
@@ -145,6 +163,24 @@ public:
 	ArpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
 		: AbstractHeader(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "ARP"; }
+	virtual void print(std::ostream& where) const;
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header);
+};
+
+struct arphdr_eth_ipv4
+{
+	unsigned char ar_sha[ETH_ALEN];	/* Sender hardware address.  */
+	unsigned char ar_spa[4];	/* Sender IP address.  */
+	unsigned char ar_tha[ETH_ALEN];	/* Target hardware address.  */
+	unsigned char ar_tpa[4];	/* Target IP address.  */
+};
+
+class ArpEthIpHeader : public ArpHeader {
+public:
+	ArpEthIpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
+		: ArpHeader(buffer, len, prev_header) { }
+	virtual const char * getHeaderName() const { return "ARP (Ethernet, IP4)"; }
+	virtual void print(std::ostream& where) const;
 };
 
 class UnknownHeader : public AbstractHeader {
@@ -152,6 +188,9 @@ public:
 	UnknownHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
 		: AbstractHeader(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "Unknown"; }
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+		return new UnknownHeader(buffer, len, prev_header);
+	}
 };
 
 class PayloadData : public AbstractHeader {
@@ -159,6 +198,9 @@ public:
 	PayloadData(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
 		: AbstractHeader(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "Data"; }
+	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+		return new PayloadData(buffer, len, prev_header);
+	}
 };
 
 } // namespace filter

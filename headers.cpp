@@ -200,11 +200,11 @@ AbstractHeader * EthernetHeader::createNextHeader() const {
 
 	switch (htons(eth->h_proto)) {
 		case ETH_P_IP: // IP Protocol
-			return new IpHeader(payload, payload_size, this);
+			return IpHeader::createHeader(payload, payload_size, this);
 		case ETH_P_ARP: // ARP Protocol
-			return new ArpHeader(payload, payload_size, this);
+			return ArpHeader::createHeader(payload, payload_size, this);
 		default:
-			return new UnknownHeader(payload, payload_size, this);
+			return UnknownHeader::createHeader(payload, payload_size, this);
 	}
 }
 
@@ -243,23 +243,23 @@ AbstractHeader * IpHeader::createNextHeader() const {
 
 	switch (iph->protocol) {
 		case 1: // ICMP Protocol
-			return new IcmpHeader(payload, payload_size, this);
+			return IcmpHeader::createHeader(payload, payload_size, this);
 			break;
 
 		case 2: // IGMP Protocol
-			return new IgmpHeader(payload, payload_size, this);
+			return IgmpHeader::createHeader(payload, payload_size, this);
 			break;
 
 		case 6: // TCP Protocol
-			return new TcpHeader(payload, payload_size, this);
+			return TcpHeader::createHeader(payload, payload_size, this);
 			break;
 
 		case 17: // UDP Protocol
-			return new UdpHeader(payload, payload_size, this);
+			return UdpHeader::createHeader(payload, payload_size, this);
 			break;
 
 		default: // Other Protocols
-			return new UnknownHeader(payload, payload_size, this);
+			return UnknownHeader::createHeader(payload, payload_size, this);
 			break;
 	}
 }
@@ -304,7 +304,7 @@ AbstractHeader * TcpHeader::createNextHeader() const {
 	const unsigned char * payload = data + tcphdrlen;
 	unsigned int payload_size = data_len - tcphdrlen;
 	if (!payload_size) return NULL;
-	else return new PayloadData(payload, payload_size, this);
+	else return PayloadData::createHeader(payload, payload_size, this);
 }
 
 void TcpHeader::print(std::ostream& where) const {
@@ -342,7 +342,7 @@ AbstractHeader * UdpHeader::createNextHeader() const {
 	const unsigned char * payload = data + udphdrlen;
 	unsigned int payload_size = data_len - udphdrlen;
 	if (!payload_size) return NULL;
-	else return new PayloadData(payload, payload_size, this);
+	else return PayloadData::createHeader(payload, payload_size, this);
 }
 
 void UdpHeader::print(std::ostream& where) const {
@@ -367,7 +367,7 @@ AbstractHeader * IcmpHeader::createNextHeader() const {
 	const unsigned char * payload = data + icmphdrlen;
 	unsigned int payload_size = data_len - icmphdrlen;
 	if (!payload_size) return NULL;
-	else return new PayloadData(payload, payload_size, this);
+	else return PayloadData::createHeader(payload, payload_size, this);
 }
 
 void IcmpHeader::print(std::ostream& where) const {
@@ -401,5 +401,70 @@ void IcmpHeader::print(std::ostream& where) const {
 
 	where << "ICMP Header (Raw Data)" << std::endl;
 	printRawData(where, &icmph, icmphdrlen);
+}
+
+void ArpHeader::print(std::ostream& where) const {
+	const struct arphdr * arph = (const struct arphdr *) data;
+	//unsigned short arphdrlen = sizeof(struct arphdr); // ARP header Lenght
+	//unsigned short arphdrhwlen = arph->ar_hln; // Hardware Length
+	//unsigned short arphdrprlen = arph->ar_pln; // Protocol Length
+
+	where <<  "ARP Header" << std::endl;
+	where <<  "   |-Hardware type    : " << ntohs(arph->ar_hrd);
+	switch(ntohs(arph->ar_hrd)) { // Defined in if_arp.h
+		case ARPHRD_ETHER:    where <<  "  (Ethernet 10/100Mbps)" << std::endl; break;
+		default:              where <<  "  (Unknown)" << std::endl;
+	}
+
+	where <<  "   |-Protocol type    : " << ntohs(arph->ar_pro);
+	switch(ntohs(arph->ar_pro)) { // Defined in ethernet.h
+		case ETHERTYPE_IP:    where <<  "  (IPv4)" << std::endl; break;
+		case ETHERTYPE_IPV6:  where <<  "  (IPv6)" << std::endl; break;
+		default:              where <<  "  (Unknown)" << std::endl;
+	}
+
+	where <<  "   |-Operation        : " << ntohs(arph->ar_op);
+	switch(ntohs(arph->ar_op)) { // Defined in if_arp.h
+		case ARPOP_REQUEST:   where <<  "  (ARP request)" << std::endl; break;
+		case ARPOP_REPLY:     where <<  "  (ARP reply)" << std::endl; break;
+		case ARPOP_RREQUEST:  where <<  "  (RARP request)" << std::endl; break;
+		case ARPOP_RREPLY:    where <<  "  (RARP reply)" << std::endl; break;
+		case ARPOP_InREQUEST: where <<  "  (InARP request)" << std::endl; break;
+		case ARPOP_InREPLY:   where <<  "  (InARP reply)" << std::endl; break;
+		case ARPOP_NAK:       where <<  "  (ARP NAK)" << std::endl; break;
+		default:              where <<  "  (Unknown)" << std::endl;
+	}
+}
+
+AbstractHeader * ArpHeader::createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+	const struct arphdr * arph = (const struct arphdr *) buffer;
+	if (ntohs(arph->ar_hrd) == ARPHRD_ETHER && ntohs(arph->ar_pro) == ETHERTYPE_IP)
+		return new ArpEthIpHeader(buffer, len, prev_header);
+	return new ArpHeader(buffer, len, prev_header);
+}
+
+void ArpEthIpHeader::print(std::ostream& where) const {
+	ArpHeader::print(where);
+	//const struct arphdr * arph = (const struct arphdr *) data;
+	unsigned short arphdrlen = sizeof(struct arphdr); // ARP header Lenght
+	const struct arphdr_eth_ipv4 * eth_ipv4 = (const struct arphdr_eth_ipv4 *)(data + arphdrlen);
+
+	printWithFormat(where, "   |-Sender MAC       : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
+		eth_ipv4->ar_sha[0], eth_ipv4->ar_sha[1], eth_ipv4->ar_sha[2],
+		eth_ipv4->ar_sha[3], eth_ipv4->ar_sha[4], eth_ipv4->ar_sha[5] );
+	where << std::endl;
+
+	printWithFormat(where, "   |-Sender IP        : %u.%u.%u.%u",
+		eth_ipv4->ar_spa[0], eth_ipv4->ar_spa[1], eth_ipv4->ar_spa[2], eth_ipv4->ar_spa[3]);
+	where << std::endl;
+
+	printWithFormat(where, "   |-Target MAC       : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
+		eth_ipv4->ar_tha[0], eth_ipv4->ar_tha[1], eth_ipv4->ar_tha[2],
+		eth_ipv4->ar_tha[3], eth_ipv4->ar_tha[4], eth_ipv4->ar_tha[5] );
+	where << std::endl;
+
+	printWithFormat(where, "   |-Sender IP        : %u.%u.%u.%u",
+		eth_ipv4->ar_tpa[0], eth_ipv4->ar_tpa[1], eth_ipv4->ar_tpa[2], eth_ipv4->ar_tpa[3]);
+	where << std::endl;
 }
 
