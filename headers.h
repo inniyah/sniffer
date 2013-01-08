@@ -13,9 +13,61 @@
 
 namespace filter {
 
-typedef unsigned char MacAddress[ETH_ALEN];
-typedef in_addr_t IpAddress;
-typedef u_int16_t PortNumber;
+class MacAddress {
+private: 
+	unsigned char address[ETH_ALEN];
+public:
+	inline MacAddress();
+	inline MacAddress(const unsigned char * v);
+	inline operator const unsigned char * () const { return address; }
+	const unsigned char * operator=(const unsigned char * v);
+	bool less (const unsigned char * other, bool equal) const;
+	bool equal (const unsigned char * other) const;
+	inline bool operator< (const unsigned char * other) const {
+		return less (other, false);
+	}
+	inline bool operator<= (const unsigned char * other) const {
+		return less (other, true);
+	}
+	inline bool operator> (const unsigned char * other) const {
+		return ! less (other, true);
+	}
+	inline bool operator>= (const unsigned char * other) const {
+		return ! less (other, false);
+	}
+	inline bool operator== (const unsigned char * other) const {
+		return equal (other);
+	}
+	inline bool operator!= (const unsigned char * other) const {
+		return ! equal (other);
+	}
+};
+
+std::ostream& operator<< (std::ostream& out, const MacAddress & v);
+
+class IpAddress {
+private:
+	in_addr_t  value;
+public:
+	inline IpAddress() : value(0)  { }
+	inline IpAddress(in_addr_t  v) : value(v) { }
+	inline operator in_addr_t() const { return value; }
+	in_addr_t operator=(in_addr_t v) { return value = v; }
+};
+
+std::ostream& operator<< (std::ostream& out, const IpAddress & v);
+
+class PortNumber {
+private:
+	u_int16_t value;
+public:
+	inline PortNumber() : value(0) { }
+	inline PortNumber(u_int16_t v) : value(v) { }
+	inline operator u_int16_t() const { return value; }
+	u_int16_t operator=(u_int16_t v) { return value = v; }
+};
+
+std::ostream& operator<< (std::ostream& out, const PortNumber & v);
 
 enum {
 	PHYSICAL_LAYER =     1 << 0,
@@ -42,9 +94,7 @@ public:
 	virtual AbstractHeader * createNextHeader() const { return NULL; }
 	virtual AbstractHeader * clone () const = 0;
 	virtual void print(std::ostream& where) const;
-	const AbstractHeader * getPreviousHeader() const {
-		return prev;
-	}
+	inline const AbstractHeader * getPreviousHeader() const { return prev; }
 
 	// Extract relevant info from headers
 	virtual const unsigned char * getMacAddress() const { return NULL; }
@@ -67,7 +117,7 @@ inline std::ostream& operator<< (std::ostream& out, const AbstractHeader& hd) {
 template <typename DERIVED>
 class HeaderAux : public AbstractHeader {
 public:
-	HeaderAux(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
+	inline HeaderAux(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
 			: AbstractHeader(buffer, len, prev_header) {
 		if (id ==0) { id = ++next_id; }
 	}

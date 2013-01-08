@@ -95,6 +95,55 @@ static void printRawData (std::ostream& out, const void * pointer, int size)
 	}
 }
 
+// Basic Types
+
+inline MacAddress::MacAddress() {
+	memset(address, 0, sizeof(address));
+}
+
+inline MacAddress::MacAddress(const unsigned char * v) {
+	memcpy(address, v, sizeof(address));
+}
+
+const unsigned char * MacAddress::operator=(const unsigned char * v) {
+	memcpy(address, v, sizeof(address));
+	return address;
+}
+
+bool MacAddress::less (const unsigned char * other, bool equal) const {
+	for (int i = 0; i < ETH_ALEN ; i++)
+		if (address[i] < other[i])
+			return true;
+		else if (address[i] > other[i])
+			return false;
+	return equal;
+}
+
+bool MacAddress::equal (const unsigned char * other) const {
+	for (int i = ETH_ALEN-1; i >= 0 ; i--)
+		if (address[i] != other[i])
+			return false;
+	return true;
+}
+
+std::ostream& operator<< (std::ostream& out, const MacAddress & v) {
+	const unsigned char *address = v;
+	printWithFormat(out, "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
+		address[0], address[1], address[2], address[3], address[4], address[5] );
+	return out;
+}
+
+inline std::ostream& operator<< (std::ostream& out, const IpAddress & v) {
+	struct sockaddr_in sa;
+	memset(&sa, 0, sizeof(struct sockaddr_in));
+	sa.sin_addr.s_addr = in_addr_t(v);
+	return out << inet_ntoa(sa.sin_addr);
+}
+
+inline std::ostream& operator<< (std::ostream& out, const PortNumber & v) {
+	return out << u_int16_t(v);
+}
+
 // Abstract Header
 
 void AbstractHeader::print(std::ostream& where) const {
