@@ -60,7 +60,7 @@ struct IpPort {
 
 };
 
-
+// IPv4 would be: IpPortConnection<in_addr_t,u_int16_t>
 template <typename NETID, typename PORT>
 struct IpPortConnection {
 	IpPort<NETID, PORT> low;
@@ -141,6 +141,12 @@ bool IpPortConnection<NETID,PORT>::lower_than(const NETID &saddr, const PORT &sp
 	if ( high < *other_high ) return true;
 	if ( high > *other_high ) return false;
 	return false;
+}
+
+template <typename NETID, typename PORT>
+inline std::ostream& operator<< (std::ostream& out, const IpPortConnection<NETID,PORT> & a) {
+	out << a.low.addr << ":" << a.low.port << " <-> " << a.high.addr << ":" << a.high.port;
+	return out;
 }
 
 } // namespace filter

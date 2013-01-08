@@ -41,14 +41,36 @@ void Sniffer::loop(const char* devname) {
 }
 
 void Sniffer::newPacket(const unsigned char * buffer, int size) {
+	// Create list of headers from buffer
 	const AbstractHeader *first_header = new EthernetHeader(buffer, size, NULL);
-
 	const AbstractHeader *last_header = first_header;
-	do {
-		std::cout << *last_header << std::endl;
-	} while (NULL != (last_header = last_header->createNextHeader()));
-
 	const AbstractHeader *header = last_header;
+	do {
+		last_header = header;
+		//std::cout << *header << std::endl;
+	} while (NULL != (header = header->createNextHeader()));
+
+	// Print headers
+	const AbstractHeader *payload_data = NULL; (void)payload_data;
+	const AbstractHeader *transport_header = NULL; (void)transport_header;
+	const AbstractHeader *network_layer = NULL; (void)network_layer;
+	for (const AbstractHeader *h = last_header; h != NULL; h = h->getPreviousHeader() ) {
+		if (!transport_header && (h->getLayers() | PAYLOAD_DATA) != 0)
+				payload_data = h;
+
+		if (!transport_header) {
+			if ((h->getLayers() | TRANSPORT_LAYER) != 0)
+				transport_header = h;
+		} else if (!network_layer) {
+			if ((h->getLayers() | NETWORK_LAYER) != 0)
+				network_layer = h;
+		}
+
+		std::cout << "<< " << *h << std::endl;
+	}
+
+	// Delete list of headers
+	header = last_header;
 	while (header) {
 		const AbstractHeader *h = h;
 		header = header->getPreviousHeader();
@@ -62,3 +84,10 @@ void Sniffer::process_packet(u_char* arg, const struct pcap_pkthdr * header, con
 	sniffer->newPacket(buffer, size);
 }
 
+void Sniffer::printConnections(std::ostream& out) {
+	for (ConnectionStatusMap::const_iterator it = connections.begin(); it != connections.end(); it++) {
+		const Connection & key = it->first; (void) key;
+		const Status & value = it->second; (void) value;
+		out << key << std::endl;
+	}
+}

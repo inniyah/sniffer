@@ -13,71 +13,62 @@
 
 namespace filter {
 
-	typedef unsigned char MacAddress[ETH_ALEN];
-	typedef in_addr_t IpAddress;
-	typedef u_int16_t PortNumber;
+typedef unsigned char MacAddress[ETH_ALEN];
+typedef in_addr_t IpAddress;
+typedef u_int16_t PortNumber;
 
-class AbstractIdBase {
+enum {
+	PHYSICAL_LAYER =     1 << 0,
+	DATA_LINK_LAYER =    1 << 1, // Frames
+	NETWORK_LAYER =      1 << 2, // Packets
+	TRANSPORT_LAYER =    1 << 3, // Flow control
+	SESSION_LAYER =      1 << 4, // Session support, authentication
+	PRESENTATION_LAYER = 1 << 5, // Translation, unit conversion, encryption
+	APPLICATION_LAYER =  1 << 6, // Program
+	PAYLOAD_DATA =       1 << 7, // Data contents
+};
+
+class AbstractHeader {
 public:
+	AbstractHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
+		: data((unsigned char *)buffer), data_len(len), prev(prev_header) { }
+	virtual ~AbstractHeader() { }
+
 	virtual const char * getTypeName() const = 0;
 	virtual unsigned int getTypeID() const = 0;
 
-	virtual void print(std::ostream& where) const = 0;
-
-	inline bool operator< (const AbstractIdBase &other) const {
-		return less (other, false);
+	virtual const char * getHeaderName() const = 0;
+	virtual const unsigned int getLayers() const = 0;
+	virtual AbstractHeader * createNextHeader() const { return NULL; }
+	virtual AbstractHeader * clone () const = 0;
+	virtual void print(std::ostream& where) const;
+	const AbstractHeader * getPreviousHeader() const {
+		return prev;
 	}
 
-	inline bool operator<= (const AbstractIdBase &other) const {
-		return less (other, true);
-	}
-
-	inline bool operator> (const AbstractIdBase &other) const {
-		return ! less (other, true);
-	}
-
-	inline bool operator>= (const AbstractIdBase &other) const {
-		return ! less (other, false);
-	}
-
-	inline bool operator== (const AbstractIdBase &other) const {
-		return equal (other);
-	}
-
-	inline bool operator!= (const AbstractIdBase &other) const {
-		return ! equal (other);
-	}
-
-	virtual bool isSameType (const AbstractIdBase &other) const {
-		return false;
-	}
-
-	enum {
-		PHYSICAL_LAYER =     1 << 0, // Frames
-		NETWORK_LAYER =      1 << 1, // Packets
-		TRANSPORT_LAYER =    1 << 2, // Flow control
-		SESSION_LAYER =      1 << 3, // Session support, authentication
-		PRESENTATION_LAYER = 1 << 4, // Translation, unit conversion, encryption
-		APPLICATION_LAYER =  1 << 5, // Program
-	};
-
-	virtual const unsigned int getLayers() const { return 0; }
-
+	// Extract relevant info from headers
 	virtual const unsigned char * getMacAddress() const { return NULL; }
 	virtual const in_addr_t getIpAddress() const { return 0; }
+	virtual const u_int16_t getPortNumber() const { return 0; }
 
 protected:
-	virtual bool less (const AbstractIdBase &other, bool equal) const = 0;
-	virtual bool equal (const AbstractIdBase &other) const = 0;
-	virtual AbstractIdBase *clone () const = 0;
+	const unsigned char * data;
+	unsigned int data_len;
+	const AbstractHeader * prev;
 
 	static unsigned int next_id;
 };
 
+inline std::ostream& operator<< (std::ostream& out, const AbstractHeader& hd) {
+	hd.print(out);
+	return out;
+}
+
 template <typename DERIVED>
-class AbstractId : public AbstractIdBase {
+class HeaderAux : public AbstractHeader {
 public:
-	AbstractId() {
+	HeaderAux(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
+			: AbstractHeader(buffer, len, prev_header) {
 		if (id ==0) { id = ++next_id; }
 	}
 
@@ -94,7 +85,7 @@ public:
 		return id;
 	}
 
-	virtual AbstractIdBase *clone () const {
+	virtual AbstractHeader *clone () const {
 		return new DERIVED(static_cast<DERIVED const &>(*this));
 	}
 
@@ -102,34 +93,12 @@ private:
 	static unsigned int id;
 };
 
-class AbstractHeader {
-public:
-	AbstractHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: data((unsigned char *)buffer), data_len(len), prev(prev_header) { }
-	virtual ~AbstractHeader() { }
-	virtual const char * getHeaderName() const = 0;
-	virtual AbstractHeader * createNextHeader() const { return NULL; }
-	virtual void print(std::ostream& where) const;
-	const AbstractHeader * getPreviousHeader() const {
-		return prev;
-	}
-
-protected:
-	const unsigned char * data;
-	unsigned int data_len;
-	const AbstractHeader * prev;
-};
-
-inline std::ostream& operator<< (std::ostream& out, const AbstractHeader& hd) {
-	hd.print(out);
-	return out;
-}
-
-class EthernetHeader : public AbstractHeader {
+class EthernetHeader : public HeaderAux<EthernetHeader> {
 public:
 	EthernetHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<EthernetHeader>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "Ethernet"; }
+	virtual const unsigned int getLayers() const { return PHYSICAL_LAYER + DATA_LINK_LAYER; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
@@ -137,11 +106,12 @@ public:
 	}
 };
 
-class IpHeader : public AbstractHeader {
+class IpHeader : public HeaderAux<IpHeader> {
 public:
 	IpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<IpHeader>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "IP"; }
+	virtual const unsigned int getLayers() const { return NETWORK_LAYER; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
@@ -149,11 +119,12 @@ public:
 	}
 };
 
-class TcpHeader : public AbstractHeader {
+class TcpHeader : public HeaderAux<TcpHeader> {
 public:
 	TcpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<TcpHeader>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "TCP"; }
+	virtual const unsigned int getLayers() const { return TRANSPORT_LAYER; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
@@ -161,11 +132,12 @@ public:
 	}
 };
 
-class UdpHeader : public AbstractHeader {
+class UdpHeader : public HeaderAux<UdpHeader> {
 public:
 	UdpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<UdpHeader>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "UDP"; }
+	virtual const unsigned int getLayers() const { return TRANSPORT_LAYER; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
@@ -173,11 +145,12 @@ public:
 	}
 };
 
-class IcmpHeader : public AbstractHeader {
+class IcmpHeader : public HeaderAux<IcmpHeader> {
 public:
 	IcmpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<IcmpHeader>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "ICMP"; }
+	virtual const unsigned int getLayers() const { return NETWORK_LAYER; }
 	virtual AbstractHeader * createNextHeader() const;
 	virtual void print(std::ostream& where) const;
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
@@ -185,21 +158,23 @@ public:
 	}
 };
 
-class IgmpHeader : public AbstractHeader {
+class IgmpHeader : public HeaderAux<IgmpHeader> {
 public:
 	IgmpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<IgmpHeader>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "IGMP"; }
+	virtual const unsigned int getLayers() const { return NETWORK_LAYER; }
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
 		return new IgmpHeader(buffer, len, prev_header);
 	}
 };
 
-class ArpHeader : public AbstractHeader {
+class ArpHeader : public HeaderAux<ArpHeader> {
 public:
 	ArpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<ArpHeader>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "ARP"; }
+	virtual const unsigned int getLayers() const { return DATA_LINK_LAYER + NETWORK_LAYER; }
 	virtual void print(std::ostream& where) const;
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header);
 };
@@ -215,26 +190,28 @@ struct arphdr_eth_ipv4
 class ArpEthIpHeader : public ArpHeader {
 public:
 	ArpEthIpHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: ArpHeader(buffer, len, prev_header) { }
+			: ArpHeader(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "ARP (Ethernet, IP4)"; }
 	virtual void print(std::ostream& where) const;
 };
 
-class UnknownHeader : public AbstractHeader {
+class UnknownHeader : public HeaderAux<UnknownHeader> {
 public:
 	UnknownHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<UnknownHeader>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "Unknown"; }
+	virtual const unsigned int getLayers() const { return 0; }
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
 		return new UnknownHeader(buffer, len, prev_header);
 	}
 };
 
-class PayloadData : public AbstractHeader {
+class PayloadData : public HeaderAux<PayloadData> {
 public:
 	PayloadData(const void * buffer, unsigned int len, const AbstractHeader * prev_header)
-		: AbstractHeader(buffer, len, prev_header) { }
+			: HeaderAux<PayloadData>(buffer, len, prev_header) { }
 	virtual const char * getHeaderName() const { return "Data"; }
+	virtual const unsigned int getLayers() const { return PAYLOAD_DATA; }
 	static AbstractHeader * createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
 		return new PayloadData(buffer, len, prev_header);
 	}

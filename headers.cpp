@@ -95,123 +95,17 @@ static void printRawData (std::ostream& out, const void * pointer, int size)
 	}
 }
 
-// Abstract Identifier
-
-unsigned int AbstractIdBase::next_id = 0;
-
-template<typename DERIVED>
-unsigned int AbstractId<DERIVED>::id = 0;
-
-// Physical Layer: Ethernet's MAC Address
-
-class PhysicalMacId : public AbstractId<PhysicalMacId> {
-public:
-	typedef MacAddress DataType;
-
-	PhysicalMacId(const unsigned char * a) {
-	for (int i = 0; i < ETH_ALEN ; i++)
-		address[i] = a[i];
-	}
-	PhysicalMacId(const PhysicalMacId &other) {
-	for (int i = 0; i < ETH_ALEN ; i++)
-		address[i] = other.address[i];
-	}
-	virtual const char * getTypeName() const {
-		return "MAC Address";
-	}
-	virtual bool isSameType (const AbstractIdBase &other) const {
-		return (ID() == other.getTypeID());
-	}
-	virtual const unsigned int getLayers() const {
-		return PHYSICAL_LAYER;
-	}
-	virtual const unsigned char * getMacAddress() const {
-		return address;
-	}
-	virtual void print(std::ostream& where) const;
-protected:
-	virtual bool less (const AbstractIdBase &other, bool equal) const;
-	virtual bool equal (const AbstractIdBase &other) const;
-private:
-	DataType address;
-};
-
-bool PhysicalMacId::less (const AbstractIdBase &other, bool equal) const {
-	if (ID() != other.getTypeID()) return false;
-	const unsigned char *other_address = other.getMacAddress();
-	for (int i = 0; i < ETH_ALEN ; i++)
-		if (address[i] < other_address[i])
-			return true;
-		else if (address[i] > other_address[i])
-			return false;
-	return equal;
-}
-
-bool PhysicalMacId::equal (const AbstractIdBase &other) const {
-	if (ID() != other.getTypeID()) return false;
-	const unsigned char *other_address = other.getMacAddress();
-	for (int i = ETH_ALEN-1; i >= 0 ; i--)
-		if (address[i] != other_address[i])
-			return false;
-	return true;
-}
-
-void PhysicalMacId::print(std::ostream& where) const {
-	printWithFormat(where, "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
-		address[0], address[1], address[2], address[3], address[4], address[5] );
-}
-
-// Network Layer: IP Address
-
-class NetworkIpId : public AbstractId<NetworkIpId> {
-public:
-	typedef in_addr_t DataType;
-
-	NetworkIpId(DataType a) : addr(a) {
-	}
-	NetworkIpId(const NetworkIpId &other) : addr(other.addr) {
-	}
-	void print(std::ostream& where) const;
-	virtual const char * getTypeName() const {
-		return "IP Address";
-	}
-	virtual bool isSameType (const AbstractIdBase &other) const {
-		return (ID() == other.getTypeID());
-	}
-	virtual const unsigned int getLayers() const {
-		return NETWORK_LAYER;
-	}
-	virtual const in_addr_t getIpAddress() const {
-		return addr;
-	}
-protected:
-	virtual bool less (const AbstractIdBase &other, bool equal) const {
-	if (ID() != other.getTypeID()) return false;
-		in_addr_t other_addr = other.getIpAddress();
-		return equal ? addr <= other_addr : addr < other_addr;
-	}
-	virtual bool equal (const AbstractIdBase &other) const {
-	if (ID() != other.getTypeID()) return false;
-		in_addr_t other_addr = other.getIpAddress();
-		return addr == other_addr;
-	}
-private:
-	DataType addr;
-};
-
-void NetworkIpId::print(std::ostream& where) const {
-	struct sockaddr_in sa;
-	memset(&sa, 0, sizeof(struct sockaddr_in));
-	sa.sin_addr.s_addr = addr;
-	where << inet_ntoa(sa.sin_addr);
-}
-
 // Abstract Header
 
 void AbstractHeader::print(std::ostream& where) const {
 	where << "Raw Data (" << getHeaderName() << ")" << std::endl;
 	printRawData(where, data, data_len);
 }
+
+unsigned int AbstractHeader::next_id = 0;
+
+template<typename DERIVED>
+unsigned int HeaderAux<DERIVED>::id = 0;
 
 // Ethernet Header
 
