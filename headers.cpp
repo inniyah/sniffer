@@ -140,6 +140,21 @@ inline std::ostream& operator<< (std::ostream& out, const IpAddress & v) {
 	return out << inet_ntoa(sa.sin_addr);
 }
 
+inline Ip6Address::Ip6Address() {
+	memset(&address, 0, sizeof(address));
+}
+
+inline Ip6Address::Ip6Address(const struct in6_addr & a) {
+	memcpy(&address, &a, sizeof(address));
+}
+
+std::ostream& operator<< (std::ostream& out, const Ip6Address & v) {
+	const uint16_t *bytes = ( const uint16_t* ) &v.getAddress();
+	printWithFormat( out, "%x:%x:%x:%x:%x:%x:%x:%x", bytes[0], bytes[1], bytes[2],
+		bytes[3], bytes[4], bytes[5], bytes[6], bytes[7] );
+	return out;
+}
+
 inline std::ostream& operator<< (std::ostream& out, const PortNumber & v) {
 	return out << u_int16_t(v);
 }
@@ -178,8 +193,8 @@ void EthernetHeader::print(std::ostream& where) const {
 	const struct ethhdr * eth = (const struct ethhdr *) data;
 	unsigned short ethhdrlen = sizeof(struct ethhdr);
 
-	const MacAddress &src_mac = eth->h_source; // Source Mac Address
-	const MacAddress &tgt_mac = eth->h_dest;   // Target Mac Address
+	const unsigned char * src_mac = eth->h_source; // Source Mac Address
+	const unsigned char * tgt_mac = eth->h_dest;   // Target Mac Address
 	
 	where << "Ethernet Header" << std::endl;
 	printWithFormat(where, "   |-Destination Address : %.2X:%.2X:%.2X:%.2X:%.2X:%.2X",

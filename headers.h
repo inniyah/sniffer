@@ -13,6 +13,8 @@
 
 namespace filter {
 
+// Basic Types
+
 class MacAddress {
 private: 
 	unsigned char address[ETH_ALEN];
@@ -47,7 +49,7 @@ std::ostream& operator<< (std::ostream& out, const MacAddress & v);
 
 class IpAddress {
 private:
-	in_addr_t  value;
+	in_addr_t value;
 public:
 	inline IpAddress() : value(0)  { }
 	inline IpAddress(in_addr_t  v) : value(v) { }
@@ -56,6 +58,17 @@ public:
 };
 
 std::ostream& operator<< (std::ostream& out, const IpAddress & v);
+
+class Ip6Address {
+private:
+	struct in6_addr address;
+public:
+	inline Ip6Address();
+	inline Ip6Address(const struct in6_addr & a);
+	inline const struct in6_addr &getAddress() const { return address; }
+};
+
+std::ostream& operator<< (std::ostream& out, const Ip6Address & v);
 
 class PortNumber {
 private:
@@ -68,6 +81,8 @@ public:
 };
 
 std::ostream& operator<< (std::ostream& out, const PortNumber & v);
+
+// Abstract Header
 
 enum {
 	PHYSICAL_LAYER =     1 << 0,
@@ -142,6 +157,8 @@ public:
 private:
 	static unsigned int id;
 };
+
+// Headers for different protocols
 
 class EthernetHeader : public HeaderAux<EthernetHeader> {
 public:
