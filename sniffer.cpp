@@ -1,5 +1,6 @@
 #include "sniffer.h"
 #include "headers.h"
+#include "ip_port_connection.h"
 
 #include <pcap.h>
 

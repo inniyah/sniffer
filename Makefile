@@ -3,7 +3,7 @@ PROGRAM=sniffer
 all: $(PROGRAM)
 
 SOURCES = headers.cpp sniffer.cpp main.cpp
-HEADERS = headers.h sniffer.h
+HEADERS = headers.h sniffer.h ip_port_connection.h
 
 OBJS = $(SOURCES:.cpp=.o)
 

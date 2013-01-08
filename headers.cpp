@@ -95,35 +95,49 @@ static void printRawData (std::ostream& out, const void * pointer, int size)
 	}
 }
 
+// Abstract Identifier
+
+unsigned int AbstractIdBase::next_id = 0;
+
+template<typename DERIVED>
+unsigned int AbstractId<DERIVED>::id = 0;
+
 // Physical Layer: Ethernet's MAC Address
 
-class PhysicalMacId : public PhysicalId {
+class PhysicalMacId : public AbstractId<PhysicalMacId> {
 public:
-	PhysicalMacId(unsigned char * a) {
+	typedef MacAddress DataType;
+
+	PhysicalMacId(const unsigned char * a) {
 	for (int i = 0; i < ETH_ALEN ; i++)
 		address[i] = a[i];
 	}
-	virtual const char * getIdTypeName() {
+	PhysicalMacId(const PhysicalMacId &other) {
+	for (int i = 0; i < ETH_ALEN ; i++)
+		address[i] = other.address[i];
+	}
+	virtual const char * getTypeName() const {
 		return "MAC Address";
 	}
-	virtual bool isSameType (const PhysicalId &raw_other) const {
-		return raw_other.isMacAddress();
+	virtual bool isSameType (const AbstractIdBase &other) const {
+		return (ID() == other.getTypeID());
 	}
-	virtual bool isMacAddress() const {
-		return true;
+	virtual const unsigned int getLayers() const {
+		return PHYSICAL_LAYER;
 	}
 	virtual const unsigned char * getMacAddress() const {
 		return address;
 	}
+	virtual void print(std::ostream& where) const;
 protected:
-	virtual bool less (const PhysicalId &other, bool equal);
-	virtual bool equal (const PhysicalId &other);
+	virtual bool less (const AbstractIdBase &other, bool equal) const;
+	virtual bool equal (const AbstractIdBase &other) const;
 private:
-	MacAddress address;
+	DataType address;
 };
 
-bool PhysicalMacId::less (const PhysicalId &other, bool equal) {
-	if (!other.isMacAddress()) return false;
+bool PhysicalMacId::less (const AbstractIdBase &other, bool equal) const {
+	if (ID() != other.getTypeID()) return false;
 	const unsigned char *other_address = other.getMacAddress();
 	for (int i = 0; i < ETH_ALEN ; i++)
 		if (address[i] < other_address[i])
@@ -133,8 +147,8 @@ bool PhysicalMacId::less (const PhysicalId &other, bool equal) {
 	return equal;
 }
 
-bool PhysicalMacId::equal (const PhysicalId &other) {
-	if (!other.isMacAddress()) return false;
+bool PhysicalMacId::equal (const AbstractIdBase &other) const {
+	if (ID() != other.getTypeID()) return false;
 	const unsigned char *other_address = other.getMacAddress();
 	for (int i = ETH_ALEN-1; i >= 0 ; i--)
 		if (address[i] != other_address[i])
@@ -142,38 +156,47 @@ bool PhysicalMacId::equal (const PhysicalId &other) {
 	return true;
 }
 
+void PhysicalMacId::print(std::ostream& where) const {
+	printWithFormat(where, "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X",
+		address[0], address[1], address[2], address[3], address[4], address[5] );
+}
+
 // Network Layer: IP Address
 
-class NetworkIpId : public NetworkId {
+class NetworkIpId : public AbstractId<NetworkIpId> {
 public:
-	NetworkIpId(in_addr_t a) : addr(a) {
+	typedef in_addr_t DataType;
+
+	NetworkIpId(DataType a) : addr(a) {
+	}
+	NetworkIpId(const NetworkIpId &other) : addr(other.addr) {
 	}
 	void print(std::ostream& where) const;
-	virtual const char * getIdTypeName() {
+	virtual const char * getTypeName() const {
 		return "IP Address";
 	}
-	virtual bool isSameType (const NetworkId &other) {
-		return other.isIpAddress();
+	virtual bool isSameType (const AbstractIdBase &other) const {
+		return (ID() == other.getTypeID());
 	}
-	virtual bool isIpAddress() const {
-		return true;
+	virtual const unsigned int getLayers() const {
+		return NETWORK_LAYER;
 	}
 	virtual const in_addr_t getIpAddress() const {
 		return addr;
 	}
 protected:
-	virtual bool less (const NetworkId &other, bool equal) {
-		if (!other.isIpAddress()) return false;
+	virtual bool less (const AbstractIdBase &other, bool equal) const {
+	if (ID() != other.getTypeID()) return false;
 		in_addr_t other_addr = other.getIpAddress();
 		return equal ? addr <= other_addr : addr < other_addr;
 	}
-	virtual bool equal (const NetworkId &other) {
-		if (!other.isIpAddress()) return false;
+	virtual bool equal (const AbstractIdBase &other) const {
+	if (ID() != other.getTypeID()) return false;
 		in_addr_t other_addr = other.getIpAddress();
 		return addr == other_addr;
 	}
 private:
-	in_addr_t addr;
+	DataType addr;
 };
 
 void NetworkIpId::print(std::ostream& where) const {

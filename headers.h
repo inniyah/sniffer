@@ -2,6 +2,7 @@
 #define HEADERS_H_25E85D1E_4C87_11E2_BB32_7BDCB76BDF0B_
 
 #include <iostream>
+#include <typeinfo>
 
 #include <net/ethernet.h>
 #include <netinet/ip_icmp.h>
@@ -16,53 +17,89 @@ namespace filter {
 	typedef in_addr_t IpAddress;
 	typedef u_int16_t PortNumber;
 
-class AbstractId {
+class AbstractIdBase {
 public:
-	virtual void print(std::ostream& where) const = 0;
-	virtual const char * getIdTypeName() = 0;
+	virtual const char * getTypeName() const = 0;
+	virtual unsigned int getTypeID() const = 0;
 
-	inline bool operator< (const AbstractId &other) const {
+	virtual void print(std::ostream& where) const = 0;
+
+	inline bool operator< (const AbstractIdBase &other) const {
 		return less (other, false);
 	}
 
-	inline bool operator<= (const AbstractId &other) const {
+	inline bool operator<= (const AbstractIdBase &other) const {
 		return less (other, true);
 	}
 
-	inline bool operator> (const AbstractId &other) const {
+	inline bool operator> (const AbstractIdBase &other) const {
 		return ! less (other, true);
 	}
 
-	inline bool operator>= (const AbstractId &other) const {
+	inline bool operator>= (const AbstractIdBase &other) const {
 		return ! less (other, false);
 	}
 
-	inline bool operator== (const AbstractId &other) const {
+	inline bool operator== (const AbstractIdBase &other) const {
 		return equal (other);
 	}
 
-	inline bool operator!= (const AbstractId &other) const {
+	inline bool operator!= (const AbstractIdBase &other) const {
 		return ! equal (other);
 	}
-	virtual bool isSameType (const AbstractId &other) const {
+
+	virtual bool isSameType (const AbstractIdBase &other) const {
 		return false;
 	}
 
-protected:
-	virtual bool less (const AbstractId &other, bool equal) const = 0;
-	virtual bool equal (const AbstractId &other) const = 0;
-};
+	enum {
+		PHYSICAL_LAYER =     1 << 0, // Frames
+		NETWORK_LAYER =      1 << 1, // Packets
+		TRANSPORT_LAYER =    1 << 2, // Flow control
+		SESSION_LAYER =      1 << 3, // Session support, authentication
+		PRESENTATION_LAYER = 1 << 4, // Translation, unit conversion, encryption
+		APPLICATION_LAYER =  1 << 5, // Program
+	};
 
-class PhysicalId : public AbstractId {
-public:
-	virtual bool isMacAddress() const { return false; }
+	virtual const unsigned int getLayers() const { return 0; }
+
 	virtual const unsigned char * getMacAddress() const { return NULL; }
+	virtual const in_addr_t getIpAddress() const { return 0; }
+
+protected:
+	virtual bool less (const AbstractIdBase &other, bool equal) const = 0;
+	virtual bool equal (const AbstractIdBase &other) const = 0;
+	virtual AbstractIdBase *clone () const = 0;
+
+	static unsigned int next_id;
 };
 
-class NetworkId : public AbstractId {
+template <typename DERIVED>
+class AbstractId : public AbstractIdBase {
 public:
-	virtual bool isIpAddress() const { return false; }
-	virtual const in_addr_t getIpAddress() const { return 0; }
+	AbstractId() {
+		if (id ==0) { id = ++next_id; }
+	}
+
+	static unsigned int ID() {
+		if (id ==0) { id = ++next_id; }
+		return id;
+	}
+
+	virtual const char * getTypeName() const {
+		return typeid(DERIVED).name();
+	}
+
+	virtual unsigned int getTypeID() const {
+		return id;
+	}
+
+	virtual AbstractIdBase *clone () const {
+		return new DERIVED(static_cast<DERIVED const &>(*this));
+	}
+
+private:
+	static unsigned int id;
 };
 
 class AbstractHeader {
