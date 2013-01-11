@@ -42,15 +42,17 @@ void Sniffer::loop(const char* devname) {
 
 void Sniffer::newPacket(const unsigned char * buffer, int size) {
 	// Create list of headers from buffer
-	const AbstractHeader *first_header = new EthernetHeader(buffer, size, NULL);
-	const AbstractHeader *last_header = first_header;
-	const AbstractHeader *header = last_header;
+	EthernetHeader first_header(buffer, size);
+
+	// Find the last header
+	AbstractHeader *last_header = &first_header;
+	AbstractHeader *header = last_header;
 	do {
 		last_header = header;
 		//std::cout << *header << std::endl;
-	} while (NULL != (header = header->createNextHeader()));
+	} while (NULL != (header = header->getNextHeader()));
 
-	// Print headers
+	// Print headers in reverse order
 	const AbstractHeader *payload_data = NULL; (void)payload_data;
 	const AbstractHeader *transport_header = NULL; (void)transport_header;
 	const AbstractHeader *network_layer = NULL; (void)network_layer;
@@ -68,20 +70,13 @@ void Sniffer::newPacket(const unsigned char * buffer, int size) {
 
 		std::cout << "<< " << *h << std::endl;
 	}
-
-	// Delete list of headers
-	header = last_header;
-	while (header) {
-		const AbstractHeader *h = h;
-		header = header->getPreviousHeader();
-		delete h;
-	}
 }
 
 void Sniffer::process_packet(u_char* arg, const struct pcap_pkthdr * header, const u_char * buffer) {
 	Sniffer *sniffer = (Sniffer *)arg;
 	int size = header->len;
 	sniffer->newPacket(buffer, size);
+	std::cout << "     ----------" << std::endl;
 }
 
 void Sniffer::printConnections(std::ostream& out) {

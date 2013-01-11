@@ -181,11 +181,11 @@ AbstractHeader * EthernetHeader::createNextHeader() const {
 
 	switch (htons(eth->h_proto)) {
 		case ETH_P_IP: // IP Protocol
-			return IpHeader::createHeader(payload, payload_size, this);
+			return IpHeader::createHeader(payload, payload_size);
 		case ETH_P_ARP: // ARP Protocol
-			return ArpHeader::createHeader(payload, payload_size, this);
+			return ArpHeader::createHeader(payload, payload_size);
 		default:
-			return UnknownHeader::createHeader(payload, payload_size, this);
+			return UnknownHeader::createHeader(payload, payload_size);
 	}
 }
 
@@ -224,23 +224,23 @@ AbstractHeader * IpHeader::createNextHeader() const {
 
 	switch (iph->protocol) {
 		case 1: // ICMP Protocol
-			return IcmpHeader::createHeader(payload, payload_size, this);
+			return IcmpHeader::createHeader(payload, payload_size);
 			break;
 
 		case 2: // IGMP Protocol
-			return IgmpHeader::createHeader(payload, payload_size, this);
+			return IgmpHeader::createHeader(payload, payload_size);
 			break;
 
 		case 6: // TCP Protocol
-			return TcpHeader::createHeader(payload, payload_size, this);
+			return TcpHeader::createHeader(payload, payload_size);
 			break;
 
 		case 17: // UDP Protocol
-			return UdpHeader::createHeader(payload, payload_size, this);
+			return UdpHeader::createHeader(payload, payload_size);
 			break;
 
 		default: // Other Protocols
-			return UnknownHeader::createHeader(payload, payload_size, this);
+			return UnknownHeader::createHeader(payload, payload_size);
 			break;
 	}
 }
@@ -285,7 +285,7 @@ AbstractHeader * TcpHeader::createNextHeader() const {
 	const unsigned char * payload = data + tcphdrlen;
 	unsigned int payload_size = data_len - tcphdrlen;
 	if (!payload_size) return NULL;
-	else return PayloadData::createHeader(payload, payload_size, this);
+	else return PayloadData::createHeader(payload, payload_size);
 }
 
 void TcpHeader::print(std::ostream& where) const {
@@ -323,7 +323,7 @@ AbstractHeader * UdpHeader::createNextHeader() const {
 	const unsigned char * payload = data + udphdrlen;
 	unsigned int payload_size = data_len - udphdrlen;
 	if (!payload_size) return NULL;
-	else return PayloadData::createHeader(payload, payload_size, this);
+	else return PayloadData::createHeader(payload, payload_size);
 }
 
 void UdpHeader::print(std::ostream& where) const {
@@ -348,7 +348,7 @@ AbstractHeader * IcmpHeader::createNextHeader() const {
 	const unsigned char * payload = data + icmphdrlen;
 	unsigned int payload_size = data_len - icmphdrlen;
 	if (!payload_size) return NULL;
-	else return PayloadData::createHeader(payload, payload_size, this);
+	else return PayloadData::createHeader(payload, payload_size);
 }
 
 void IcmpHeader::print(std::ostream& where) const {
@@ -417,11 +417,11 @@ void ArpHeader::print(std::ostream& where) const {
 	}
 }
 
-AbstractHeader * ArpHeader::createHeader(const void * buffer, unsigned int len, const AbstractHeader * prev_header) {
+AbstractHeader * ArpHeader::createHeader(const void * buffer, unsigned int len) {
 	const struct arphdr * arph = (const struct arphdr *) buffer;
 	if (ntohs(arph->ar_hrd) == ARPHRD_ETHER && ntohs(arph->ar_pro) == ETHERTYPE_IP)
-		return new ArpEthIpHeader(buffer, len, prev_header);
-	return new ArpHeader(buffer, len, prev_header);
+		return new ArpEthIpHeader(buffer, len);
+	return new ArpHeader(buffer, len);
 }
 
 void ArpEthIpHeader::print(std::ostream& where) const {
